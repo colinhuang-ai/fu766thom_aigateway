@@ -1,0 +1,67 @@
+stages:
+  - validate
+  - plan
+  - apply
+
+variables:
+  TF_ROOT: infra
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "0"
+  # Local SSO profile in variables.tf doesn't exist on runners; use env credentials instead.
+  TF_VAR_aws_profile: ""
+  # AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_DEFAULT_REGION and
+  # TF_VAR_alert_email, TF_VAR_trusted_principal_arns, TF_VAR_profile_sources
+  # must be set as masked CI/CD variables (Settings > CI/CD > Variables).
+
+default:
+  image:
+    name: hashicorp/terraform:1.9
+    entrypoint: [""]
+  before_script:
+    - cd "$TF_ROOT"
+  cache:
+    key: terraform-providers
+    paths:
+      - $TF_ROOT/.terraform/providers
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+fmt:
+  stage: validate
+  script:
+    - terraform fmt -check -recursive -diff
+
+validate:
+  stage: validate
+  script:
+    - terraform init -backend=false
+    - terraform validate
+
+plan:
+  stage: plan
+  script:
+    - terraform init
+    - terraform plan -out=tfplan
+    - terraform show -json tfplan > tfplan.json
+  artifacts:
+    paths:
+      - $TF_ROOT/tfplan
+    reports:
+      terraform: $TF_ROOT/tfplan.json
+    expire_in: 1 week
+
+apply:
+  stage: apply
+  script:
+    - terraform init
+    - terraform apply -auto-approve tfplan
+  needs: [plan]
+  environment:
+    name: sandbox
+  resource_group: sandbox
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual

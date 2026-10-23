@@ -1,0 +1,12 @@
+region      = "us-east-1"
+aws_profile = "bcp-sandbox"
+alert_email = "you@example.com"
+
+# Filled from: aws bedrock list-inference-profiles --type-equals SYSTEM_DEFINED
+profile_sources = {
+  "team-a" = "arn:aws:bedrock:us-east-1:<ACCOUNT_ID>:inference-profile/us.amazon.nova-micro-v1:0"
+  "team-b" = "arn:aws:bedrock:us-east-1:<ACCOUNT_ID>:inference-profile/us.amazon.nova-micro-v1:0"
+}
+
+# Your SSO role/user ARN (from `aws sts get-caller-identity`)
+trusted_principal_arns = ["arn:aws:iam::<ACCOUNT_ID>:root"]
